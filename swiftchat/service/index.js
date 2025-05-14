@@ -17,6 +17,54 @@ const {
 const { getUserMessage } = require('../../utils/swiftchat-helpers');
 const fetch = require('node-fetch'); // Add at the top if not present
 
+// In-memory store for demo purposes (use Redis/DB for production)
+const userQuizState = {}; // { userMobile: { correctAnswer, options, question } }
+
+// Function to send a trivia question
+async function sendTriviaQuestion(userMobile, questionObj) {
+  // Prepare options and shuffle
+  const options = [questionObj.correct_answer, ...questionObj.incorrect_answers];
+  for (let j = options.length - 1; j > 0; j--) {
+    const k = Math.floor(Math.random() * (j + 1));
+    [options[j], options[k]] = [options[k], options[j]];
+  }
+  const optionLabels = ['A', 'B', 'C', 'D'];
+  const optionsText = options.map((opt, idx) => `${optionLabels[idx]}) ${opt}`).join('\n');
+  const message = `${questionObj.question}\n${optionsText}`;
+
+  // Store correct answer label for validation
+  const correctLabel = optionLabels[options.indexOf(questionObj.correct_answer)];
+  userQuizState[userMobile] = {
+    correctAnswer: correctLabel,
+    options,
+    question: questionObj.question
+  };
+
+  // Send question
+  await sendMessageApi(null, userMobile, message, 'text');
+}
+
+// Function to validate user's answer
+async function validateTriviaAnswer(userMobile, userAnswer) {
+  const quizState = userQuizState[userMobile];
+  if (!quizState) {
+    await sendMessageApi(null, userMobile, "No active question. Please start a new quiz.", 'text');
+    return;
+  }
+  if (userAnswer.trim().toUpperCase() === quizState.correctAnswer) {
+    await sendMessageApi(null, userMobile, "Correct! 🎉", 'text');
+  } else {
+    await sendMessageApi(
+      null,
+      userMobile,
+      `Wrong! The correct answer was ${quizState.correctAnswer}) ${quizState.options[quizState.correctAnswer.charCodeAt(0) - 65]}.`,
+      'text'
+    );
+  }
+  // Remove state after answer
+  delete userQuizState[userMobile];
+}
+
 const klusterWebhook = async (userMobile, userMessage, messageType, messageBody) => {
   const waNumber = null;
   const responseMessage = [];
@@ -134,7 +182,7 @@ const klusterWebhook = async (userMobile, userMessage, messageType, messageBody)
 };
 
 async function fetchTriviaQuestions(category, difficulty) {
-  const url = `https://opentdb.com/api.php?amount=10&category=${category}&difficulty=${difficulty}`;
+  const url = `https://opentdb.com/api.php?amount=10&category=${category}&difficulty=${difficulty}&type=multiple`;
   const response = await fetch(url, { method: 'GET' });
   if (!response.ok) throw new Error('Failed to fetch trivia questions');
   const data = await response.json();
