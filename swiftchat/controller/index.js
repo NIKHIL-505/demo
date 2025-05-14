@@ -51,7 +51,21 @@ const messageWebhookTest = async (req, res) => {
   });
 };
 
+const triviaQuestions = async (req, res, next) => {
+  try {
+    const { category, difficulty } = req.body;
+    if (!category || !difficulty) {
+      return res.status(400).json({ error: 'category and difficulty are required' });
+    }
+    const questions = await service.fetchTriviaQuestions(category, difficulty);
+    res.json({ questions });
+  } catch (e) {
+    next(e);
+  }
+};
+
 module.exports = {
   klusterWebhook,
   messageWebhookTest,
+  triviaQuestions, // Add this to exports
 };
