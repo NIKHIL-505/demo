@@ -52,6 +52,43 @@ const sendMessageApi = async (waNumber, user, message, type, caption, mime) => {
   }
 };
 
+function formatTriviaQuestions(questions) {
+  return questions.map((q, i) => {
+    if (q.type === 'boolean') {
+      // True/False question with radio buttons
+      return `${i + 1}. ${decodeHtml(q.question)}\n` +
+        `<input type="radio" name="q${i}" value="True"> True\n` +
+        `<input type="radio" name="q${i}" value="False"> False`;
+    } else {
+      // Multiple choice: shuffle options
+      const options = [q.correct_answer, ...q.incorrect_answers];
+      // Shuffle options
+      for (let j = options.length - 1; j > 0; j--) {
+        const k = Math.floor(Math.random() * (j + 1));
+        [options[j], options[k]] = [options[k], options[j]];
+      }
+      const optionLabels = ['A', 'B', 'C', 'D'];
+      const optionsText = options.map((opt, idx) =>
+        `<input type="radio" name="q${i}" value="${decodeHtml(opt)}"> ${optionLabels[idx]}) ${decodeHtml(opt)}`
+      ).join('\n');
+      return `${i + 1}. ${decodeHtml(q.question)}\n${optionsText}`;
+    }
+  }).join('\n\n');
+}
+
+// Helper to decode HTML entities
+function decodeHtml(html) {
+  return html.replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+const questions = await fetchTriviaQuestions(category, difficulty);
+const message = formatTriviaQuestions(questions);
+await sendMessageApi(null, userMobile, message, 'text');
+
 module.exports = {
   sendMessageApi,
 };
