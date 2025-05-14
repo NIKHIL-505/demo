@@ -15,6 +15,7 @@ const {
   invalidWebMessageButtons, invalidWebViewMoreMessageButtons,
 } = require('../../utils/message-samples');
 const { getUserMessage } = require('../../utils/swiftchat-helpers');
+const fetch = require('node-fetch'); // Add at the top if not present
 
 const klusterWebhook = async (userMobile, userMessage, messageType, messageBody) => {
   const waNumber = null;
@@ -132,6 +133,15 @@ const klusterWebhook = async (userMobile, userMessage, messageType, messageBody)
   }
 };
 
+async function fetchTriviaQuestions(category, difficulty) {
+  const url = `https://opentdb.com/api.php?amount=10&category=${category}&difficulty=${difficulty}`;
+  const response = await fetch(url, { method: 'GET' });
+  if (!response.ok) throw new Error('Failed to fetch trivia questions');
+  const data = await response.json();
+  return data.results;
+}
+
 module.exports = {
   klusterWebhook,
+  fetchTriviaQuestions, // Add this to exports
 };
